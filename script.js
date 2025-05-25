@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const username = document.getElementById("username").value;
+        const submit = document.getElementById("submit").setAttribute("disabled", "true");
 
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -15,17 +16,38 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-    // Load saved data from storage when popup opens
-    chrome.storage.local.get(["iDontFollowBack"], (result) => {
-        const output = result.iDontFollowBack;
-        if (output && output.length > 0) {
+        if (message.type === "DONTFOLLOWBACK_DATA") {
+            const usernames = message.data;
             document.body.insertAdjacentHTML(
                 "beforeend",
-                `<p>Usernames not following back: ${output.join(", ")}</p>`
+                `<p>Users who don't follow you back: ${usernames.join(", ")}</p>`
             );
         }
+
+        if (message.type === "IDONTFOLLOW_DATA") {
+            const usernames = message.data;
+            document.body.insertAdjacentHTML(
+                "beforeend",
+                `<p>Users who you don't follow back: ${usernames.join(", ")}</p>`
+            );
+        }
+
+
     });
+
+
+    // // Load saved data from storage when popup opens
+    // chrome.storage.local.get(["iDontFollowBack"], (result) => {
+    //     const output = result.iDontFollowBack;
+    //     if (output && output.length > 0) {
+    //         document.body.insertAdjacentHTML(
+    //             "beforeend",
+    //             `<p>Usernames not following you back: ${output.join(", ")}</p>`
+    //         );
+    //     }
+    // });
 
 });
 
@@ -141,17 +163,31 @@ function injectFunction(username) {
                 );
             });
 
+            // Notify popup
+            chrome.runtime.sendMessage({
+                type: "DONTFOLLOWBACK_DATA",
+                data: getUserNames(dontFollowMeBack)
+            });
+            console.log("users don't follow me back sent to runtime:", dontFollowMeBack);
+
             iDontFollowBack = followers.filter((follower) => {
                 return !followings.find(
                     (following) => following.username === follower.username
                 );
             });
 
-            alert(getUserNames(iDontFollowBack));
+            // alert(getUserNames(iDontFollowBack));
 
-            chrome.storage.local.set({ iDontFollowBack: usernames }, () => {
-                console.log("Usernames saved to storage:", usernames);
+            // chrome.storage.local.set({ iDontFollowBack: iDontFollowBack }, () => {
+            //     console.log("Usernames saved to storage:", iDontFollowBack);
+            // });
+
+            // Notify popup
+            chrome.runtime.sendMessage({
+                type: "IDONTFOLLOW_DATA",
+                data: getUserNames(iDontFollowBack)
             });
+            console.log("i don't follow back sent to runtime:", iDontFollowBack);
 
         } catch (err) {
             console.log({ err });
